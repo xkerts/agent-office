@@ -23,8 +23,13 @@ export interface Usage {
   callsKnown?: boolean;
   /** Authoritative provider total when it cannot be reconstructed from the displayed buckets. */
   totalTokens?: number;
-  /** Size of the context window in tokens, when the provider reports one (DeepSeek Harness over ACP). */
+  /**
+   * Size of the context window in tokens: what DeepSeek Harness reports over ACP, or for Claude, 200k
+   * or 1M by the model it runs on (see server/claude-context.ts).
+   */
   contextSize?: number;
+  /** Tokens its context holds now (Claude: everything its latest call sent), when known. */
+  contextUsed?: number;
   /**
    * The model its latest call ran on, as its session names it (`claude-opus-5-5`), when the office
    * reads that off the session: what a worker's card says it runs, whatever was asked for.

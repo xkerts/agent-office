@@ -888,7 +888,7 @@ export class WorkerManager {
       return; // an unreadable transcript is retried on the next scan
     }
     const before = w.info.usage ?? zeroUsage();
-    const after = trackerUsage(w.tracker);
+    const after = trackerUsage(w.tracker, w.info.model);
     w.info.usage = after;
     this.ledger.add(addUsage(after, before, -1));
     this.emitUpdate(w);

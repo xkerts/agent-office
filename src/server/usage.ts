@@ -1,6 +1,7 @@
 import { closeSync, existsSync, fstatSync, openSync, readdirSync, readFileSync, readSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import type { Usage, UsageState } from '../shared/protocol.js';
+import { CLAUDE_WINDOW, claudeContextSize } from './claude-context.js';
 
 /*
  * Where a worker's numbers come from
@@ -12,6 +13,10 @@ import type { Usage, UsageState } from '../shared/protocol.js';
  * it; those are read too. When a session ends, Claude Code appends a `cost-state` line with its own
  * tally — that also covers calls that never reach the transcript (titles, summaries) — and the
  * worker's figures snap to it; anything logged after (a resume) is estimated on top again.
+ *
+ * How full its context is comes from the session's own latest call: everything that call sent
+ * (input, cache write and cache read) is what the context holds now, as Claude Code's own
+ * indicator counts it. Subagents have contexts of their own, so their calls don't count.
  *
  * The transcript format is Claude Code's own and may change: everything below is defensive, and a
  * line it does not understand is skipped, never fatal.
@@ -95,15 +100,23 @@ export interface UsageTracker {
   at?: number;
   /** The model the session's own latest message ran on (not a subagent's). */
   model?: string;
+  /** Tokens the session's own latest call sent: what its context holds now. */
+  context?: number;
+  /** Its context once held more than a 200k window does: it's a 1M one. */
+  wide?: boolean;
 }
 
 export const newTracker = (): UsageTracker => ({ files: {}, since: zeroUsage() });
 
-export function trackerUsage(t: UsageTracker): Usage {
-  const model = t.model ? { model: t.model } : {};
-  if (!t.base) return { ...t.since, ...model };
+/** The session's usage; `requested` is the model the worker was hired with, which says how big its context window is. */
+export function trackerUsage(t: UsageTracker, requested?: string): Usage {
+  const more = {
+    ...(t.model ? { model: t.model } : {}),
+    ...(t.context ? { contextUsed: t.context, contextSize: claudeContextSize(t.wide ? Infinity : t.context, requested) } : {}),
+  };
+  if (!t.base) return { ...t.since, ...more };
   const { at: _at, ...base } = t.base;
-  return { ...addUsage(base, t.since), ...model };
+  return { ...addUsage(base, t.since), ...more };
 }
 
 const asUsage = (v: any): Usage | undefined =>
@@ -125,6 +138,8 @@ export function restoreTracker(saved: any): UsageTracker {
   t.since = asUsage(saved.since) ?? zeroUsage();
   if (num(saved.at)) t.at = saved.at;
   if (isModelId(saved.model)) t.model = saved.model;
+  if (num(saved.context)) t.context = saved.context;
+  if (saved.wide === true) t.wide = true;
   return t;
 }
 
@@ -172,6 +187,12 @@ function applyLine(t: UsageTracker, cur: FileCursor, line: any, main: boolean): 
     const msg = line.message;
     if (!msg || typeof msg !== 'object' || typeof msg.id !== 'string' || !msg.usage) return false;
     if (main && !line.isSidechain && isModelId(msg.model)) t.model = msg.model;
+    if (main && !line.isSidechain) {
+      const context = num(msg.usage.input_tokens) + num(msg.usage.cache_creation_input_tokens) + num(msg.usage.cache_read_input_tokens);
+      if (context) t.context = context;
+      // Past 200k it can only be a 1M window, and stays one after the context is compacted.
+      if (context > CLAUDE_WINDOW) t.wide = true;
+    }
     // Already inside Claude Code's own tally.
     if (t.base && at <= t.base.at) return false;
     const u = usageOfMessage(typeof msg.model === 'string' ? msg.model : '', msg.usage);

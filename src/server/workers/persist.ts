@@ -94,7 +94,7 @@ export function restoreWorkers(file: string, workers: Map<string, Worker>, defau
         task: validTask(s.task),
         pr: s.pr && typeof s.pr.number === 'number' && typeof s.pr.url === 'string' ? { number: s.pr.number, url: s.pr.url } : undefined,
         pastPrs: Array.isArray(s.pastPrs) && s.pastPrs.every((n: unknown) => typeof n === 'number') && s.pastPrs.length ? s.pastPrs : undefined,
-        usage: usage?.persisted ? reportedUsage(s.usage) : usage?.transcript && tracker.transcript ? trackerUsage(tracker) : undefined,
+        usage: usage?.persisted ? reportedUsage(s.usage) : usage?.transcript && tracker.transcript ? trackerUsage(tracker, savedModel(provider, s.model)) : undefined,
         cols: 100,
         rows: 30,
         viewers: [],
