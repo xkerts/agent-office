@@ -10,6 +10,7 @@ export function reportedUsage(value: unknown): Usage | undefined {
   if (v.reasoning !== undefined && !count(v.reasoning)) return;
   if (v.totalTokens !== undefined && !count(v.totalTokens)) return;
   if (v.contextSize !== undefined && !count(v.contextSize)) return;
+  if (v.contextUsed !== undefined && !count(v.contextUsed)) return;
   if (v.callsKnown !== undefined && typeof v.callsKnown !== 'boolean') return;
   if (v.incomplete !== undefined && typeof v.incomplete !== 'boolean') return;
   if (v.costKnown !== undefined && typeof v.costKnown !== 'boolean') return;
@@ -20,6 +21,7 @@ export function reportedUsage(value: unknown): Usage | undefined {
     ...(v.reasoning === undefined ? {} : { reasoning: v.reasoning as number }),
     ...(v.totalTokens === undefined ? {} : { totalTokens: v.totalTokens as number }),
     ...(v.contextSize === undefined ? {} : { contextSize: v.contextSize as number }),
+    ...(v.contextUsed === undefined ? {} : { contextUsed: v.contextUsed as number }),
     ...(v.callsKnown === undefined ? {} : { callsKnown: v.callsKnown as boolean }),
     ...(v.incomplete === undefined ? {} : { incomplete: v.incomplete as boolean }),
     ...(v.costKnown === undefined ? {} : { costKnown: v.costKnown as boolean }),
